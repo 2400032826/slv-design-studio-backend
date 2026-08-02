@@ -7,6 +7,7 @@ const compression = require('compression');
 const morgan = require('morgan');
 const mongoSanitize = require('express-mongo-sanitize');
 const xssClean = require('xss-clean');
+const path = require('path');
 
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
@@ -30,7 +31,7 @@ const offerRoutes = require('./routes/offers');
 
 const app = express();
 
-// Connect to MongoDB
+// Connect to MongoDB Atlas
 connectDB();
 
 // Security middleware
@@ -38,9 +39,23 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
-// CORS
+// CORS Configuration for Production (Render & Vercel)
 app.use(cors({
-  origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    if (
+      origin === clientUrl ||
+      origin.includes('vercel.app') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Allow origin in production
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -57,7 +72,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(mongoSanitize());
 app.use(xssClean());
 
-const path = require('path');
+// Static file serving for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Compression
@@ -68,15 +83,19 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Health check
-app.get('/health', (req, res) => {
+// Health check endpoints (for Render / Uptime monitors)
+const healthHandler = (req, res) => {
   res.status(200).json({
     status: 'ok',
-    message: 'SLV Design Studio API is running',
+    message: 'SLV Design Studio API is running smoothly',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
+    environment: process.env.NODE_ENV || 'development',
   });
-});
+};
+
+app.get('/', healthHandler);
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -108,8 +127,8 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
   console.log(`\n🚀 SLV Design Studio API running on port ${PORT}`);
-  console.log(`📱 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🌐 Client URL: ${process.env.CLIENT_URL}`);
+  console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 Client URL: ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
 });
 
 // Handle unhandled promise rejections
