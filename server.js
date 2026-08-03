@@ -31,6 +31,9 @@ const offerRoutes = require('./routes/offers');
 
 const app = express();
 
+// Enable trust proxy for Render / Vercel reverse proxies
+app.set('trust proxy', 1);
+
 // Connect to MongoDB Atlas
 connectDB();
 
@@ -97,7 +100,7 @@ app.get('/', healthHandler);
 app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
-// API Routes
+// API Routes mounting
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/products', productRoutes);
