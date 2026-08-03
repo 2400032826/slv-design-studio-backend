@@ -8,13 +8,19 @@ const {
 const { protect } = require('../middleware/auth');
 const { authLimiter, otpLimiter } = require('../middleware/rateLimiter');
 
+// Email & OTP Authentication Routes
 router.post('/check-email', checkEmail);
 router.post('/send-otp', otpLimiter, sendOTP);
+router.post('/otp/send', otpLimiter, sendOTP);
 router.post('/verify-otp', authLimiter, verifyOTP);
+router.post('/otp/verify', authLimiter, verifyOTP);
+
+// Admin & Password Reset Routes
 router.post('/admin-login', authLimiter, adminLogin);
 router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password/:token', authLimiter, resetPassword);
 
+// Protected User Routes
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.post('/address', protect, addAddress);
