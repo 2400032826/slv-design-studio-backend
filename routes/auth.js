@@ -15,13 +15,25 @@ router.post('/otp/send', otpLimiter, sendOTP);
 router.post('/verify-otp', authLimiter, verifyOTP);
 router.post('/otp/verify', authLimiter, verifyOTP);
 
+// Login & Logout Aliases
+router.post('/login', authLimiter, (req, res, next) => {
+  if (req.body.password) {
+    return adminLogin(req, res, next);
+  }
+  return verifyOTP(req, res, next);
+});
+router.post('/logout', (req, res) => {
+  res.status(200).json({ success: true, message: 'Logged out successfully' });
+});
+
 // Admin & Password Reset Routes
 router.post('/admin-login', authLimiter, adminLogin);
 router.post('/forgot-password', authLimiter, forgotPassword);
 router.post('/reset-password/:token', authLimiter, resetPassword);
 
-// Protected User Routes
+// Protected User Profile & Data Routes
 router.get('/me', protect, getMe);
+router.get('/profile', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.post('/address', protect, addAddress);
 router.delete('/address/:id', protect, deleteAddress);

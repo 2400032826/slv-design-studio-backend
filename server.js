@@ -34,7 +34,7 @@ const app = express();
 // Enable trust proxy for Render / Vercel reverse proxies
 app.set('trust proxy', 1);
 
-// Connect to MongoDB Atlas
+// Connect to MongoDB Atlas and trigger auto-seeder
 connectDB();
 
 // Security middleware
@@ -47,17 +47,19 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
-    
+
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    if (
-      origin === clientUrl ||
-      origin.includes('vercel.app') ||
-      origin.includes('localhost') ||
-      origin.includes('127.0.0.1')
-    ) {
+    const allowed = [
+      clientUrl,
+      'https://slv-design-studio-frontend-wkhq-c7595anc4-2400032826s-projects.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:3000',
+    ];
+
+    if (allowed.some((a) => origin.startsWith(a)) || origin.includes('vercel.app')) {
       return callback(null, true);
     }
-    return callback(null, true); // Allow origin in production
+    return callback(null, true); // Allow all origins in production
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -100,9 +102,10 @@ app.get('/', healthHandler);
 app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
-// API Routes mounting
+// API Routes Mounting
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/users', adminRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/orders', orderRoutes);
