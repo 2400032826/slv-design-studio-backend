@@ -17,7 +17,7 @@ const primaryTransporter = nodemailer.createTransport({
     user: mailUser,
     pass: mailPass,
   },
-  connectionTimeout: 10000, // 10s timeout
+  connectionTimeout: 10000,
   greetingTimeout: 10000,
   socketTimeout: 10000,
   tls: {
@@ -35,22 +35,12 @@ const fallbackTransporter = nodemailer.createTransport({
     user: mailUser,
     pass: mailPass,
   },
-  connectionTimeout: 10000, // 10s timeout
+  connectionTimeout: 10000,
   greetingTimeout: 10000,
   socketTimeout: 10000,
   tls: {
     rejectUnauthorized: false,
   },
-});
-
-// Verify primary connection on startup
-primaryTransporter.verify((error) => {
-  if (error) {
-    console.warn('⚠️ Primary Gmail SMTP (Port 465) verification warning:', error.message);
-    console.warn('🔄 System will automatically retry via Fallback Transporter (Port 587) when sending email.');
-  } else {
-    console.log(`✅ Primary Gmail SMTP Transporter (Port 465) ready for ${mailUser}`);
-  }
 });
 
 module.exports = {
