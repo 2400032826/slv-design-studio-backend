@@ -41,12 +41,21 @@ const getOTPEmailTemplate = (name, otp) => `
 </html>`;
 
 const sendBrevoHTTPApi = (to, subject, html) => {
-  const brevoApiKey = process.env.BREVO_API_KEY;
-  if (!brevoApiKey) return Promise.reject(new Error('BREVO_API_KEY missing'));
+  const rawKey = process.env.BREVO_API_KEY;
+  if (!rawKey) {
+    console.log('📌 BREVO_API_KEY Status: NOT loaded (environment variable is empty)');
+    return Promise.reject(new Error('BREVO_API_KEY missing'));
+  }
+
+  // Clean key of quotes and whitespace
+  const brevoApiKey = rawKey.trim().replace(/^["']|["']$/g, '');
+  console.log(`📌 BREVO_API_KEY Status: Loaded (Length: ${brevoApiKey.length}, Prefix: ${brevoApiKey.substring(0, 10)}...)`);
+
+  const senderEmail = mailUser || 'harikasina50@gmail.com';
 
   return new Promise((resolve, reject) => {
     const data = JSON.stringify({
-      sender: { name: 'SLV Design Studio', email: mailUser || 'harikasina50@gmail.com' },
+      sender: { name: 'SLV Design Studio', email: senderEmail },
       to: [{ email: to }],
       subject,
       htmlContent: html,
@@ -69,14 +78,23 @@ const sendBrevoHTTPApi = (to, subject, html) => {
       res.on('data', (chunk) => (body += chunk));
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(JSON.parse(body));
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            resolve({ success: true, raw: body });
+          }
         } else {
+          console.error(`❌ Brevo HTTP API Error Response (${res.statusCode}):`, body);
           reject(new Error(`Brevo HTTP API ${res.statusCode}: ${body}`));
         }
       });
     });
 
-    req.on('error', (err) => reject(err));
+    req.on('error', (err) => {
+      console.error('❌ Brevo HTTP API Request Error:', err.message);
+      reject(err);
+    });
+
     req.write(data);
     req.end();
   });
@@ -90,29 +108,31 @@ const sendMailWithFallback = async (mailOptions) => {
   if (process.env.BREVO_API_KEY) {
     try {
       const res = await sendBrevoHTTPApi(options.to, options.subject, options.html);
-      console.log(`✅ Email sent via Brevo HTTPS API to ${options.to}`);
+      console.log(`✅ Email delivered successfully via Brevo HTTPS API to ${options.to}`);
       return res;
     } catch (apiErr) {
       console.warn(`⚠️ Brevo HTTPS API failed: ${apiErr.message}`);
     }
+  } else {
+    console.log('📌 BREVO_API_KEY not configured in environment; proceeding to Gmail SMTP.');
   }
 
   // 2. Try Primary Gmail SMTP (Port 465)
   try {
     const info = await primaryTransporter.sendMail(options);
-    console.log(`✅ Email sent via Primary Gmail SMTP (Port 465) to ${options.to}: ${info.messageId}`);
+    console.log(`✅ Email delivered successfully via Primary Gmail SMTP (Port 465) to ${options.to}: ${info.messageId}`);
     return info;
   } catch (primaryErr) {
-    console.warn(`⚠️ Primary Gmail SMTP (Port 465) timed out or failed: ${primaryErr.message}`);
+    console.warn(`⚠️ Primary Gmail SMTP (Port 465) failed: ${primaryErr.message}`);
     console.log(`🔄 Retrying email delivery via Fallback Gmail SMTP (Port 587)...`);
 
     // 3. Try Fallback Gmail SMTP (Port 587)
     try {
       const fallbackInfo = await fallbackTransporter.sendMail(options);
-      console.log(`✅ Email sent via Fallback Gmail SMTP (Port 587) to ${options.to}: ${fallbackInfo.messageId}`);
+      console.log(`✅ Email delivered successfully via Fallback Gmail SMTP (Port 587) to ${options.to}: ${fallbackInfo.messageId}`);
       return fallbackInfo;
     } catch (fallbackErr) {
-      console.error(`❌ Fallback Gmail SMTP (Port 587) also failed: ${fallbackErr.message}`);
+      console.error(`❌ Fallback Gmail SMTP (Port 587) failed: ${fallbackErr.message}`);
       throw fallbackErr;
     }
   }
