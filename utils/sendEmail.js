@@ -1,4 +1,4 @@
-const transporter = require('../config/nodemailer');
+const { primaryTransporter, fallbackTransporter, mailUser } = require('../config/nodemailer');
 
 const getOTPEmailTemplate = (name, otp) => `
 <!DOCTYPE html>
@@ -108,29 +108,50 @@ const getOrderStatusTemplate = (order, user, newStatus) => `
 </body>
 </html>`;
 
+const sendMailWithFallback = async (mailOptions) => {
+  const fromAddress = process.env.MAIL_FROM || (mailUser ? `SLV Design Studio <${mailUser}>` : 'SLV Design Studio <slvdesignstudio@gmail.com>');
+  const options = { ...mailOptions, from: mailOptions.from || fromAddress };
+
+  // Try Primary Transporter (Port 465)
+  try {
+    const info = await primaryTransporter.sendMail(options);
+    console.log(`✅ Email sent successfully via Primary SMTP (Port 465) to ${options.to}: ${info.messageId}`);
+    return info;
+  } catch (primaryErr) {
+    console.warn(`⚠️ Primary SMTP (Port 465) failed for ${options.to}: ${primaryErr.message}`);
+    console.log(`🔄 Retrying email delivery via Fallback SMTP (Port 587)...`);
+
+    // Retry with Fallback Transporter (Port 587)
+    try {
+      const fallbackInfo = await fallbackTransporter.sendMail(options);
+      console.log(`✅ Email sent successfully via Fallback SMTP (Port 587) to ${options.to}: ${fallbackInfo.messageId}`);
+      return fallbackInfo;
+    } catch (fallbackErr) {
+      console.error(`❌ Fallback SMTP (Port 587) also failed: ${fallbackErr.message}`);
+      throw fallbackErr;
+    }
+  }
+};
+
 exports.sendOTPEmail = async ({ email, name, otp }) => {
-  // Always log OTP to server console in dev mode
-  console.log(`\n🔑 [DEV OTP CODE] Email: ${email} | OTP: ${otp}\n`);
+  // Always log OTP to server console for instant verification & debugging
+  console.log(`\n🔑 [GENERATED OTP CODE] Target Email: ${email} | OTP: ${otp}\n`);
 
   try {
-    const fromAddress = process.env.MAIL_FROM || (process.env.MAIL_USER ? `SLV Design Studio <${process.env.MAIL_USER}>` : 'SLV Design Studio <slvdesignstudio@gmail.com>');
-    await transporter.sendMail({
-      from: fromAddress,
+    await sendMailWithFallback({
       to: email,
       subject: `${otp} - Your OTP for SLV Design Studio`,
       html: getOTPEmailTemplate(name, otp),
     });
   } catch (error) {
-    console.error('❌ Failed to send OTP email via SMTP:', error.message);
-    // Don't throw error to allow OTP verification in dev via console log
+    console.error(`❌ All SMTP attempts failed for OTP to ${email}. Error: ${error.message}`);
+    // Do not throw error so OTP API response returns success and user can proceed using console/dev OTP
   }
 };
 
 exports.sendOrderConfirmationEmail = async ({ order, user }) => {
   try {
-    const fromAddress = process.env.MAIL_FROM || (process.env.MAIL_USER ? `SLV Design Studio <${process.env.MAIL_USER}>` : 'SLV Design Studio <slvdesignstudio@gmail.com>');
-    await transporter.sendMail({
-      from: fromAddress,
+    await sendMailWithFallback({
       to: user.email,
       subject: `Order Confirmed! #${order.orderNumber} - SLV Design Studio`,
       html: getOrderConfirmationTemplate(order, user),
@@ -142,9 +163,7 @@ exports.sendOrderConfirmationEmail = async ({ order, user }) => {
 
 exports.sendOrderStatusEmail = async ({ order, user, newStatus }) => {
   try {
-    const fromAddress = process.env.MAIL_FROM || (process.env.MAIL_USER ? `SLV Design Studio <${process.env.MAIL_USER}>` : 'SLV Design Studio <slvdesignstudio@gmail.com>');
-    await transporter.sendMail({
-      from: fromAddress,
+    await sendMailWithFallback({
       to: user.email,
       subject: `Order Update: ${newStatus} - #${order.orderNumber}`,
       html: getOrderStatusTemplate(order, user, newStatus),
@@ -156,9 +175,7 @@ exports.sendOrderStatusEmail = async ({ order, user, newStatus }) => {
 
 exports.sendPasswordResetEmail = async ({ email, name, resetURL }) => {
   try {
-    const fromAddress = process.env.MAIL_FROM || (process.env.MAIL_USER ? `SLV Design Studio <${process.env.MAIL_USER}>` : 'SLV Design Studio <slvdesignstudio@gmail.com>');
-    await transporter.sendMail({
-      from: fromAddress,
+    await sendMailWithFallback({
       to: email,
       subject: 'Password Reset - SLV Design Studio',
       html: `<p>Hi ${name}, <a href="${resetURL}">Click here to reset your password</a>. Valid for 10 minutes.</p>`,
@@ -170,10 +187,8 @@ exports.sendPasswordResetEmail = async ({ email, name, resetURL }) => {
 
 exports.sendContactFormEmail = async ({ name, email, phone, message }) => {
   try {
-    const fromAddress = process.env.MAIL_FROM || (process.env.MAIL_USER ? `SLV Design Studio <${process.env.MAIL_USER}>` : 'SLV Design Studio <slvdesignstudio@gmail.com>');
-    await transporter.sendMail({
-      from: fromAddress,
-      to: process.env.BUSINESS_EMAIL || process.env.MAIL_USER || 'slvdesignstudio@gmail.com',
+    await sendMailWithFallback({
+      to: process.env.BUSINESS_EMAIL || mailUser || 'slvdesignstudio@gmail.com',
       subject: `New Contact Form Submission from ${name}`,
       html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Phone:</strong> ${phone}</p><p><strong>Message:</strong> ${message}</p>`,
     });
