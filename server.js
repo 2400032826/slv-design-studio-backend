@@ -92,7 +92,7 @@ if (process.env.NODE_ENV === 'development') {
 const healthHandler = (req, res) => {
   res.status(200).json({
     status: 'ok',
-    message: 'SLV Design Studio API is running smoothly',
+    message: "SLV Women's Fashion Studio API is running smoothly",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
   });
@@ -132,7 +132,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
-  console.log(`\n🚀 SLV Design Studio API running on port ${PORT}`);
+  console.log(`\n🚀 SLV Women's Fashion Studio API running on port ${PORT}`);
   console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Client URL: ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
 });

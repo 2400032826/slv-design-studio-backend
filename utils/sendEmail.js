@@ -21,8 +21,8 @@ const getOTPEmailTemplate = (name, otp) => `
 <body>
   <div class="container">
     <div class="header">
-      <h1>✨ SLV Design Studio</h1>
-      <p>Customize Your Style with Premium Embroidery & Printing</p>
+      <h1>✨ SLV Women's Fashion Studio</h1>
+      <p>Customize Your Style with Premium Women's Embroidery & Tailoring</p>
     </div>
     <div class="body">
       <h2>Hello, ${name || 'Valued Customer'}! 👋</h2>
@@ -34,7 +34,7 @@ const getOTPEmailTemplate = (name, otp) => `
       <p>If you did not request this, please ignore this email.</p>
     </div>
     <div class="footer">
-      <p>© 2024 SLV Design Studio | +91 9731912413 | slvdesignstudio@gmail.com</p>
+      <p>© 2024 SLV Women's Fashion Studio | +91 9731912413 | slvdesignstudio@gmail.com</p>
     </div>
   </div>
 </body>
@@ -47,7 +47,6 @@ const sendBrevoHTTPApi = (to, subject, html) => {
     return Promise.reject(new Error('BREVO_API_KEY missing'));
   }
 
-  // Clean key of quotes and whitespace
   const brevoApiKey = rawKey.trim().replace(/^["']|["']$/g, '');
   console.log(`📌 BREVO_API_KEY Status: Loaded (Length: ${brevoApiKey.length}, Prefix: ${brevoApiKey.substring(0, 10)}...)`);
 
@@ -55,7 +54,7 @@ const sendBrevoHTTPApi = (to, subject, html) => {
 
   return new Promise((resolve, reject) => {
     const data = JSON.stringify({
-      sender: { name: 'SLV Design Studio', email: senderEmail },
+      sender: { name: "SLV Women's Fashion Studio", email: senderEmail },
       to: [{ email: to }],
       subject,
       htmlContent: html,
@@ -101,10 +100,10 @@ const sendBrevoHTTPApi = (to, subject, html) => {
 };
 
 const sendMailWithFallback = async (mailOptions) => {
-  const fromAddress = process.env.MAIL_FROM || (mailUser ? `SLV Design Studio <${mailUser}>` : 'SLV Design Studio <slvdesignstudio@gmail.com>');
+  const fromAddress = process.env.MAIL_FROM || (mailUser ? `SLV Women's Fashion Studio <${mailUser}>` : "SLV Women's Fashion Studio <slvdesignstudio@gmail.com>");
   const options = { ...mailOptions, from: mailOptions.from || fromAddress };
 
-  // 1. Try Brevo HTTPS REST API (Port 443 - Never blocked by Render firewall)
+  // 1. Try Brevo HTTPS REST API (Port 443)
   if (process.env.BREVO_API_KEY) {
     try {
       const res = await sendBrevoHTTPApi(options.to, options.subject, options.html);
@@ -113,8 +112,6 @@ const sendMailWithFallback = async (mailOptions) => {
     } catch (apiErr) {
       console.warn(`⚠️ Brevo HTTPS API failed: ${apiErr.message}`);
     }
-  } else {
-    console.log('📌 BREVO_API_KEY not configured in environment; proceeding to Gmail SMTP.');
   }
 
   // 2. Try Primary Gmail SMTP (Port 465)
@@ -144,7 +141,7 @@ exports.sendOTPEmail = async ({ email, name, otp }) => {
   try {
     await sendMailWithFallback({
       to: email,
-      subject: `${otp} - Your OTP for SLV Design Studio`,
+      subject: `${otp} - Your OTP for SLV Women's Fashion Studio`,
       html: getOTPEmailTemplate(name, otp),
     });
   } catch (error) {
@@ -156,7 +153,7 @@ exports.sendOrderConfirmationEmail = async ({ order, user }) => {
   try {
     await sendMailWithFallback({
       to: user.email,
-      subject: `Order Confirmed! #${order.orderNumber} - SLV Design Studio`,
+      subject: `Order Confirmed! #${order.orderNumber} - SLV Women's Fashion Studio`,
       html: `<p>Dear ${user.name}, your order #${order.orderNumber} is confirmed!</p>`,
     });
   } catch (error) {
@@ -180,7 +177,7 @@ exports.sendPasswordResetEmail = async ({ email, name, resetURL }) => {
   try {
     await sendMailWithFallback({
       to: email,
-      subject: 'Password Reset - SLV Design Studio',
+      subject: "Password Reset - SLV Women's Fashion Studio",
       html: `<p>Hi ${name}, reset link: ${resetURL}</p>`,
     });
   } catch (error) {
